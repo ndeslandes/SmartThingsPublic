@@ -14,73 +14,66 @@
  *
  */
 definition(
-    name: "Exterior light",
-    namespace: "ndeslandes",
-    author: "Nicolas Deslandes",
-    description: "Exterior light",
-    category: "Green Living",
-    iconUrl: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience.png",
-    iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png",
-    iconX3Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png")
+        name: "Exterior light",
+        namespace: "ndeslandes",
+        author: "Nicolas Deslandes",
+        description: "Exterior light",
+        category: "Green Living",
+        iconUrl: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience.png",
+        iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png",
+        iconX3Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png")
 
 
 preferences {
-	section("Title") {
-       input "lights", "capability.switch", title: "Exterior lights", required: true, multiple: true
-	}
-}
-
-def installed() {
-	log.debug "Installed with settings: ${settings}"
-
-	initialize()
-}
-
-def updated() {
-	log.debug "Updated with settings: ${settings}"
-
-	unsubscribe()
-	initialize()
-}
-
-def initialize() {
-        Long sunrise = getSunriseAndSunset().sunrise.time
-        Long sunset = getSunriseAndSunset().sunset.time
-        Long timeNow = now()
-        if (timeNow > sunset) {
-        log.info "sun is down"
-            lights.each {
-              if (it.currentSwitch == "off")
-                  it.on()
-            }
-        }
-        else if (timeNow > sunrise) {
-        log.info "sun is up"
-            lights.each {
-                if (it.currentSwitch == "on")
-                    it.off()
-            } 
-        }
-        subscribe(location, "sunset", sunsetHandler)
-        subscribe(location, "sunrise", sunriseHandler)
-}
-
-def sunsetHandler(evt) {
-    log.debug "${evt}"
-    log.info "sun is up"
-    
-    lights.each {
-      if (it.currentSwitch == "off")
-          it.on()
+    section("Title") {
+        input "lights", "capability.switch", title: "Exterior lights", required: true, multiple: true
     }
 }
 
-def sunriseHandler(evt) {
-    log.debug "${evt}"
-    log.info "sun is down"
+def installed() {
+    log.debug "Installed with settings: ${settings}"
 
+    initialize()
+}
+
+def updated() {
+    log.debug "Updated with settings: ${settings}"
+
+    unsubscribe()
+    initialize()
+}
+
+def initialize() {
+    Long sunrise = getSunriseAndSunset().sunrise.time
+    Long sunset = getSunriseAndSunset().sunset.time
+    Long timeNow = now()
+    if (timeNow > sunset) {
+        turnOn()
+    } else if (timeNow > sunrise) {
+        turnOff()
+    }
+    subscribe(location, "sunset", sunsetHandler)
+    subscribe(location, "sunrise", sunriseHandler)
+}
+
+def sunsetHandler(evt) {
+    turnOn()
+}
+
+def sunriseHandler(evt) {
+    turnOff()
+}
+
+def turnOff() {
     lights.each {
-      if (it.currentSwitch == "on")
-          it.off()
+        if (it.currentSwitch == "on")
+            it.off()
+    }
+}
+
+def turnOn() {
+    lights.each {
+        if (it.currentSwitch == "off")
+            it.on()
     }
 }
