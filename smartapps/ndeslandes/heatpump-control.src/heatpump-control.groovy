@@ -28,6 +28,7 @@ preferences {
     section("Heating based on the following devices") {
         input "heatPump", "capability.switch", title: "Heat Pump", required: true, multiple: false
         input "heaters", "capability.thermostatHeatingSetpoint", title: "Heaters that are on the same floor than the heat pump", required: true, multiple: true
+        input "insideSensors", "capability.temperatureMeasurement", title: "Sensors that are on the same floor than the heat pump", required: true, multiple: true
         input "outsideSensor", "capability.temperatureMeasurement", title: "Outside temperature sensor", required: true, multiple: false
     }
     section("Preferences") {
@@ -56,7 +57,7 @@ def updated() {
 
 def initialize() {
     controlHeatpumpAndHeaters()
-    subscribe(heaters, "temperature", temperatureHandler)
+    subscribe(insideSensors, "temperature", temperatureHandler)
 }
 
 def temperatureHandler(evt) {
@@ -75,9 +76,9 @@ def controlHeatpumpAndHeaters() {
         if (outsideSensor.currentTemperature > minHeatpumpOutsideTemp) {
             log.info "Outside temperature is fine"
             setAllHeatingSetpoint(idleTemp)
-            if (heaters.every { it.currentTemperature > homeTemp + tempSwing / 2 })
+            if (insideSensors.every { it.currentTemperature > homeTemp + tempSwing / 2 })
                 stopHeatPump()
-            else if (heaters.any { it.currentTemperature < homeTemp - tempSwing / 2 })
+            else if (insideSensors.any { it.currentTemperature < homeTemp - tempSwing / 2 })
                 startHeatPump()
         } else {
             log.info "Outside temperature is too cold"
