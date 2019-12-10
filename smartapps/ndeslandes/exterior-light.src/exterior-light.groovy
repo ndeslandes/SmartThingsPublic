@@ -18,7 +18,7 @@ definition(
         namespace: "ndeslandes",
         author: "Nicolas Deslandes",
         description: "Exterior light",
-        category: "Green Living",
+        category: "Convenience",
         iconUrl: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience.png",
         iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png",
         iconX3Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png")
@@ -44,36 +44,28 @@ def updated() {
 }
 
 def initialize() {
+    handleExteriorLights()
+    subscribe(location, "sunset", sunsetSunriseHandler)
+    subscribe(location, "sunrise", sunsetSunriseHandler)
+}
+
+def sunsetSunriseHandler(evt) {
+    handleExteriorLights()
+}
+
+def handleExteriorLights() {
     Long sunrise = getSunriseAndSunset().sunrise.time
     Long sunset = getSunriseAndSunset().sunset.time
     Long timeNow = now()
     if (timeNow > sunset) {
-        turnOn()
+        lights.each {
+            if (it.currentSwitch == "off")
+                it.on()
+        }
     } else if (timeNow > sunrise) {
-        turnOff()
-    }
-    subscribe(location, "sunset", sunsetHandler)
-    subscribe(location, "sunrise", sunriseHandler)
-}
-
-def sunsetHandler(evt) {
-    turnOn()
-}
-
-def sunriseHandler(evt) {
-    turnOff()
-}
-
-def turnOff() {
-    lights.each {
-        if (it.currentSwitch == "on")
-            it.off()
-    }
-}
-
-def turnOn() {
-    lights.each {
-        if (it.currentSwitch == "off")
-            it.on()
+        lights.each {
+            if (it.currentSwitch == "on")
+                it.off()
+        }
     }
 }
