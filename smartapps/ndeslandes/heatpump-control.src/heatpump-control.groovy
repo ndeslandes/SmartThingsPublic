@@ -76,9 +76,9 @@ def controlHeatpumpAndHeaters() {
         if (outsideSensor.currentTemperature > minHeatpumpOutsideTemp) {
             log.info "Outside temperature is fine"
             setAllHeatingSetpoint(idleTemp)
-            if (insideSensors.every { it.currentTemperature > homeTemp + tempSwing / 2 })
+            if (insideSensors.every { it.currentTemperature >= homeTemp + tempSwing / 2 })
                 stopHeatPump()
-            else if (insideSensors.any { it.currentTemperature < homeTemp - tempSwing / 2 })
+            else if (insideSensors.any { it.currentTemperature <= homeTemp - tempSwing / 2 })
                 startHeatPump()
         } else {
             log.info "Outside temperature is too cold"
