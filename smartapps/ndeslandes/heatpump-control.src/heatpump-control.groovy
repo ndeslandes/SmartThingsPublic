@@ -38,7 +38,7 @@ preferences {
         input "idleTemp", "decimal", title: "Idle temperature", required: true, defaultValue: 18.0
         input "preheatingTime", "number", title: "Preheating time (in minutes)", required: true, defaultValue: 15
         input "minHeatpumpOutsideTemp", "decimal", title: "Minimal outside temperature", required: true, defaultValue: -12.0
-        input "tempSwing", "decimal", title: "Temperature swing", required: true, defaultValue: 1.0
+        input "tempSwing", "decimal", title: "Temperature swing (+)", required: true, defaultValue: 0.5
     }
 }
 
@@ -76,9 +76,9 @@ def controlHeatpumpAndHeaters() {
         if (outsideSensor.currentTemperature > minHeatpumpOutsideTemp) {
             log.info "Outside temperature is fine"
             setAllHeatingSetpoint(idleTemp)
-            if (insideSensors.every { it.currentTemperature >= homeTemp + tempSwing / 2 })
+            if (insideSensors.every { it.currentTemperature >= homeTemp + tempSwing})
                 stopHeatPump()
-            else if (insideSensors.any { it.currentTemperature <= homeTemp - tempSwing / 2 })
+            else if (insideSensors.any { it.currentTemperature < homeTemp})
                 startHeatPump()
         } else {
             log.info "Outside temperature is too cold"
