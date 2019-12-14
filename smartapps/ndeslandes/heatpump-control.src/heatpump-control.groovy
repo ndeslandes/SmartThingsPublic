@@ -13,6 +13,10 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  */
+
+import java.math.BigDecimal
+import physicalgraph.app.DeviceWrapperList
+
 definition(
         name: "Heatpump control",
         namespace: "ndeslandes",
@@ -27,7 +31,8 @@ definition(
 preferences {
     section("Heating based on the following devices") {
         input "heatPump", "capability.switch", title: "Heat Pump", required: true, multiple: false
-        input "heaters", "capability.thermostatHeatingSetpoint", title: "Heaters that are on the same floor than the heat pump", required: true, multiple: true
+        input "sameFloorHeaters", "capability.thermostatHeatingSetpoint", title: "Heaters that are on the same floor than the heat pump", required: true, multiple: true
+        input "otherHeaters", "capability.thermostatHeatingSetpoint", title: "Other heaters", required: true, multiple: true
         input "insideSensors", "capability.temperatureMeasurement", title: "Sensors that are on the same floor than the heat pump", required: true, multiple: true
         input "outsideSensor", "capability.temperatureMeasurement", title: "Outside temperature sensor", required: true, multiple: false
     }
@@ -35,9 +40,9 @@ preferences {
         input "wakeTime", "time", title: "Wake Time", required: true, defaultValue: "2015-01-09T07:00:00.000-0500"
         input "sleepTime", "time", title: "Sleep Time", required: true, defaultValue: "2015-01-09T22:00:00.000-0500"
         input "homeTemp", "decimal", title: "Home temperature", required: true, defaultValue: 21.0
-        input "idleTemp", "decimal", title: "Idle temperature", required: true, defaultValue: 18.0
-        input "preheatingTime", "number", title: "Preheating time (in minutes)", required: true, defaultValue: 15
-        input "minHeatpumpOutsideTemp", "decimal", title: "Minimal outside temperature", required: true, defaultValue: -12.0
+        input "awayTemp", "decimal", title: "Away temperature", required: true, defaultValue: 18.0
+        input "preheatingTime", "number", title: "Preheating time (in minutes)", required: true, defaultValue: 30
+        input "minHeatpumpOutsideTemp", "decimal", title: "Minimal outside temperature", required: true, defaultValue: -10.0
         input "tempSwing", "decimal", title: "Temperature swing (+)", required: true, defaultValue: 0.5
     }
 }
@@ -58,6 +63,7 @@ def updated() {
 def initialize() {
     controlHeatpumpAndHeaters()
     subscribe(insideSensors, "temperature", temperatureHandler)
+    subscribe(location, "mode", locationHandler)
 }
 
 def temperatureHandler(evt) {
@@ -65,34 +71,59 @@ def temperatureHandler(evt) {
 
     controlHeatpumpAndHeaters()
 }
+def locationHandler(evt) {
+    log.info "Received mode changed event, new mode is ${evt.value}"
+
+    controlHeatpumpAndHeaters()
+    controlOtherHeaters()
+}
+
+def controlOtherHeaters() {
+    BigDecimal temperature
+    if(location.mode == 'Home')
+        temperature = homeTemp
+    else
+        temperature = awayTemp
+
+    otherHeaters.each {
+        if (it.heatingSetpoint != temperature)
+            it.setHeatingSetpoint(temperature)
+    }
+}
 
 def controlHeatpumpAndHeaters() {
     Long timeNow = now()
     Long heatingTimeStart = timeToday(wakeTime, location.timeZone).time - preheatingTime * 60 * 1000
     Long heatingTimeStop = timeToday(sleepTime, location.timeZone).time
+    BigDecimal temperature
+
+    if(location.mode == 'Home')
+        temperature = homeTemp
+    else
+        temperature = awayTemp
 
     if (timeNow >= heatingTimeStart && timeNow <= heatingTimeStop) {
         log.info "Inside heating hours"
         if (outsideSensor.currentTemperature > minHeatpumpOutsideTemp) {
             log.info "Outside temperature is fine"
-            setAllHeatingSetpoint(idleTemp)
-            if (insideSensors.every { it.currentTemperature >= homeTemp + tempSwing})
+            setAllHeatingSetpoint(sameFloorHeaters, awayTemp)
+            if (insideSensors.every { it.currentTemperature >= temperature + tempSwing})
                 stopHeatPump()
-            else if (insideSensors.any { it.currentTemperature < homeTemp})
+            else if (insideSensors.any { it.currentTemperature < temperature})
                 startHeatPump()
         } else {
             log.info "Outside temperature is too cold"
             stopHeatPump()
-            setAllHeatingSetpoint(homeTemp)
+            setAllHeatingSetpoint(sameFloorHeaters, homeTemp)
         }
     } else {
         log.info "Outside heating hours"
         stopHeatPump()
-        setAllHeatingSetpoint(idleTemp)
+        setAllHeatingSetpoint(sameFloorHeaters, awayTemp)
     }
 }
 
-def setAllHeatingSetpoint(java.math.BigDecimal temperature) {
+def setAllHeatingSetpoint(DeviceWrapperList heaters, BigDecimal temperature) {
     heaters.each {
         if (it.heatingSetpoint != temperature)
             it.setHeatingSetpoint(temperature)
