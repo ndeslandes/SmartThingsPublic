@@ -61,6 +61,7 @@ def updated() {
 }
 
 def initialize() {
+    controlOtherHeaters()
     controlHeatpumpAndHeaters()
     subscribe(insideSensors, "temperature", temperatureHandler)
     subscribe(location, "mode", locationHandler)
